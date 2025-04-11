@@ -1,0 +1,300 @@
+---
+title: "Assignment 1"
+author: "Lao Khanh Naiva - 22145720"
+date: "2025-04-04"
+output: word_document
+---
+
+# Declaration
+
+By including this statement, we the authors of this work, verify that:
+
+• We hold a copy of this assignment that we can produce if the original is lost or damaged.
+
+• We hereby certify that no part of this assignment/product has been copied from any other student’s work or from any other source except where due acknowledgement is made in the assignment.
+
+• No part of this assignment/product has been written/produced for us by another person except where such collaboration has been authorised by the subject lecturer/tutor concerned. • We are aware that this work may be reproduced and submitted to plagiarism detection software programs for the purpose of detecting possible plagiarism (which may retain a copy on its database for future plagiarism checking).
+
+• We hereby certify that we have read and understand what the School of Computing, Engineering and Mathematics defines as minor and substantial breaches of misconduct as outlined in the learning guide for this unit.
+
+\newpage
+
+------------------------------------------------------------------------
+
+# TASK 1
+
+## Importing the data
+
+```{r, results='hide'}
+library(ggplot2)
+library(tidyverse)
+
+automobile = read.csv("Automobile.csv")
+maintenance = read.csv("Maintenance.csv")
+engine = read.csv("Engine.csv")
+
+```
+
+## Presenting the data
+
+```{r}
+
+# The head() function gives a preview of inputed data, providing the overall layout of each dataset
+head(automobile)
+head(maintenance)
+head(engine)
+
+```
+
+```{r}
+# The str() function supports the above output in a more efficient way, with a more comprehensive summary of each dataset's structure 
+str(automobile)
+str(maintenance)
+str(engine)
+```
+
+-   Automobile Data: includes 204 automobiles with 13 variables describing various attributes of each vehicle.
+
+-   Maintenance Data: includes 374 observations with 7 variables describing various aspects of maintenance activities.
+
+-   Engine Data: includes 88 engine models with 8 variables describing various attributes of different engines.
+
+## Merging the datasets
+
+For the next tasks, all three datasets are merged into a single dataframe called "df" for ease of analysis.
+
+```{r}
+# Combining all three datasets into a single dataframe
+df = automobile %>%
+  left_join(engine, by = "EngineModel", relationship = "many-to-many") %>%
+  left_join(maintenance, by = "PlateNumber", relationship = "many-to-many")
+df = as.data.frame(df)
+str(df)
+```
+
+The left_join function is used to preserve the totality of automobiles used for the data. Many-to-many relationships are also accepted: some engine models might be used in multiple cars, and one car can have multiple maintenance records.
+
+## Replacing missing values "?" with NA
+
+```{r}
+# The lapply() function will replace all missing values accross all column of each datasets with ifelse().
+df[] <- lapply(df, function(x) {
+  ifelse(x == "?", NA, x)
+})
+```
+
+## Convert categorical variables BodyStyles, FuelTypes, ErrorCodes to factors
+
+```{r}
+df$BodyStyles = as.factor(df$BodyStyles)
+df$ErrorCodes = as.factor(df$ErrorCodes)
+df$FuelTypes = as.factor(df$FuelTypes)
+```
+
+## Replace the missing values in column Horsepower with the mean horsepower
+
+```{r}
+# The Horsepower variable needs to be converted from a string variable to a numeric varibale
+df$Horsepower = as.numeric(df$Horsepower)
+
+# The mean horsepower is then calculated, without taking into account the missing values in order to produce an accurate result
+mean_horsepower <- mean(df$Horsepower, na.rm = TRUE)
+
+# Replacing the missing values with mean:
+missing_horsepower <- is.na(df$Horsepower)
+df$Horsepower[missing_horsepower] <- mean_horsepower
+
+```
+
+## Horsepower distribution
+
+```{r}
+ggplot(df, aes(x = Horsepower)) +
+  geom_histogram(fill = "blue", color = "black") +
+  ggtitle("Horsepower Distribution")
+```
+
+A histogram is be used to visualise horsepower distribution, as it provides a representation of frequency and visualisation of most common (or less common) values in the dataset. As can be seen, the data is right-skewed and most engines in the dataset have lower horsepower. Few engines extend towards higher horsepower values, creating a long tail and illustrating several outliers.
+
+A boxplot can provide further insights regarding distribution, providing a visualisation of summary statistics.
+
+```{r}
+ggplot(df, aes(x = "", y = Horsepower)) +
+  geom_boxplot(fill = "blue", color = "black") +
+  ggtitle("Horsepower Distribution") +
+  xlab("") +
+  ylab("Horsepower")
+```
+
+-   IQR: Q3 stands at approximately 120 horsepower, while Q1 is approximately 50 horsepower - meaning that the values are spread within a range of 70. This is means that the data is moderately varied.
+
+-   Median: the median stands at approximately 90, indicating central tendency and that the data is skewed.
+
+-   Outliers: three outliers can be identified, indicating extreme values in horsepower and powerful engines.
+
+------------------------------------------------------------------------
+
+## TASK 2
+
+## Distribution of horsepower across the number of cylinders
+
+```{r}
+# Generating a histogram to visualise horsepower distribution according to number of cylinders
+ggplot(df, mapping = aes(x = Horsepower)) +
+  geom_histogram(binwidth = 10, color = "black") +
+  facet_wrap(~ NumCylinders, ncol = 3) +
+  labs(title = "Distribution of Horsepower Across Number of Cylinders")
+```
+
+The resulting output is disordered, showing the histograms according to number of cylinders at random. Hence, this requires the definition of levels within the variable NumCylinders.
+
+```{r}
+# The variable NumCylinders will be converted into a factor and ordered from small to large
+df$NumCylinders <- factor(
+  df$NumCylinders,
+  levels = c("two", "three", "four", "five", "six", "eight", "twelve"), 
+  ordered = TRUE
+)
+
+# Regenerating the histogram:
+ggplot(df, mapping = aes(x = Horsepower)) +
+  geom_histogram(binwidth = 10, fill = "blue", color = "black") +
+  facet_wrap(~ NumCylinders, ncol = 3) +
+  labs(title = "Distribution of Horsepower Across Number of Cylinders")
+```
+
+```{r}
+# Generating a boxplot
+ggplot(df, aes(x = NumCylinders, y = Horsepower)) +
+  geom_boxplot() +
+  ggtitle("Distribution of Horsepower by Number of Cylinder")
+```
+
+As can be seen, distribution of horsepower varies significantly depending on the number of cylinders. In the histograms, four cylinder counts are most common in the dataset, while three and twelve cylinder counts are least common. In the boxplots, variability of horsepower is most significant in the groups of six and eight cylinders, while it is the least significant in four cylinder counts due to its frequency of observations. This could suggest that the data collected may be biased and not well suited for complex statistical analysis.
+
+## Distribution of horsepower across different groups of engine sizes
+
+The engine sizes will be divided by 4 different groups: 60-100, 101-200, 201-300, 301+.
+
+```{r}
+# Splitting the EngineSize variable by aforementioned groups
+
+df$EngineSize <- ifelse(df$EngineSize >= 60 & df$EngineSize <= 100, "60-100",
+                                   ifelse(df$EngineSize >= 101 & df$EngineSize <= 200, "101-200",
+                                          ifelse(df$EngineSize >= 201 & df$EngineSize <= 300, "201-300",
+                                                 ifelse(df$EngineSize > 300, "301+", NA))))
+
+
+# Classifying the groups from small to large for ease of comprehension in the following visualisation
+df$EngineSize <- factor(
+  df$EngineSize,
+  levels = c("60-100", "101-200", "201-300", "301+"), 
+  ordered = TRUE
+)
+
+# Generating a histogram
+ggplot(df, aes(x = Horsepower)) +
+  geom_histogram(binwidth = 10, color = "black") +
+  facet_wrap(~EngineSize) +
+  ggtitle("Distribution of Horsepower According to Engine Size")
+
+```
+
+```{r}
+# Generating a boxplot
+ggplot(df, aes(x = EngineSize, y = Horsepower)) +
+  geom_boxplot() +
+  ggtitle("Distribution of Horsepower by Number of Cylinder")
+```
+
+There is a noticeable trend of increasing horsepower as the engine size gets larger, as can be seen in the histograms. However, the frequency of observations in each category of engine size is highly uneven, with 201-300 and 301+ containing minimal observations. In the boxplot, large engine sizes show the most variability and extreme skewness due to their low observations counts, while smaller and mid-size engine sizes tend to have many outliers.
+
+Overall, horsepower shows a potential positive trend as the number of cylinders and engine size increases which could be further analysed with more complex techniques. However, the structure of the data may not be optimal for further analysis and may require more data collection and / or cleaning.
+
+------------------------------------------------------------------------
+
+# TASK 3
+
+## Filter out engines in the dataset that have trouble or are suspected of having trouble
+
+In order to study troubles related to engines, we want to keep all observations filtered by the variable ErrorCodes related to engine failure.
+
+```{r}
+troubled_engines = df %>% filter(ErrorCodes == 1)
+```
+
+## Top 5 most common troubles related to the engines
+
+```{r}
+top_troubles_engines = troubled_engines %>% 
+  group_by(Troubles) %>% 
+  summarise(Frequency = n()) %>% 
+  arrange(desc(Frequency))
+head(top_troubles_engines)
+```
+
+The most common causes for engine failure are related to cylinders, ignition, noise, valve and fans.
+
+## Top 5 troubles according to Fuel Types
+
+```{r}
+unique(troubled_engines$FuelTypes) # Show the types of fuel in the dataset: gas and diesel
+
+# Diesel fuel
+diesel_troubles = troubled_engines %>% filter(FuelTypes == "diesel") %>% count(Troubles, sort = TRUE)
+head(diesel_troubles)
+
+# Gas
+gas_troubles = troubled_engines %>% filter(FuelTypes == "gas") %>% count(Troubles, sort = TRUE)
+head(gas_troubles)
+```
+
+The troubles differ significantly between fuel types. Overall, it seems that troubled engines mostly occur within gas vehicles, but this could also be due to lack of data for diesel vehicles.
+
+In both types of fuel, common issues related to engine failure involve cylinder troubles which rank Top 1 and Top 2 in diesel and gas vehicles, respectively. Engine failure in diesel vehicles mostly occur as a result of troubles in cam shaft and crank shaft, whereas engine failure in gas vehicles are often due to ignition and noise.
+
+# TASK 4
+
+## Cross-tabulations
+
+As the dataset is not optimised for complex statistical analysis, simple techniques like cross tabulation and histogram visualisations will give a general overview of factors that might influence the maintenance methods.
+
+Cross tabulations will display the frequency distribution of combinations and reveal general patterns between variables in a concise and understandable summary of their relationships.
+
+-   Fuel Types & Methods
+
+```{r}
+fuel_crosstab = table(troubled_engines$FuelTypes, troubled_engines$Methods)
+print(fuel_crosstab)
+```
+
+Overall, diesel cars have fewer maintenance occurrences compared to gas cars, indicating that gas cars are more prone to maintenance issues. However, diesel cars are more likely to require replacements, while gas cars have an equal likelihood of needing adjustments or replacements.
+
+-   Body Styles & Methods
+
+```{r}
+body_crosstab = table(troubled_engines$BodyStyles, troubled_engines$Methods)
+print(body_crosstab)
+```
+
+Among different styles of vehicles, Sedans and wagons tend to require more replacements, while hatchbacks have a balanced need for both adjustments and replacements. Convertibles and hardtops show no strong preference for either maintenance method.
+
+## Histograms
+
+Histograms can better visualise the relationships illustrated in the cross-tabulations above.
+
+-   Body Styles & Methods
+
+```{r}
+ggplot(troubled_engines, aes(x = BodyStyles, fill = Methods)) +
+  geom_bar(position = "dodge") +
+  ggtitle("Maintenance Methods by Body Style")
+```
+
+-   Fuel Types & Methods
+
+```{r}
+ggplot(troubled_engines, aes(x = FuelTypes, fill = Methods)) +
+  geom_bar(position = "dodge") +
+  ggtitle("Maintenance Methods by Fuel Type")
+```
